@@ -390,6 +390,12 @@ exports.cancelShipment = async (req, res, next) => {
  */
 exports.shiprocketWebhook = async (req, res) => {
   try {
+    const secret = process.env.WEBHOOK_SECRET;
+    if (secret) {
+      const provided = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+      if (provided !== secret) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const { awb, current_status } = req.body;
     if (!awb) return res.status(400).json({ success: false, message: 'Missing AWB' });
 
@@ -416,6 +422,12 @@ exports.shiprocketWebhook = async (req, res) => {
  */
 exports.delhiveryWebhook = async (req, res) => {
   try {
+    const secret = process.env.WEBHOOK_SECRET;
+    if (secret) {
+      const provided = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+      if (provided !== secret) return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
     const packages = req.body?.packages || [];
     for (const pkg of packages) {
       const waybill        = pkg.waybill;
