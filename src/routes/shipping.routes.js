@@ -3,8 +3,8 @@ const ctrl   = require('../controllers/shipping.controller');
 const { protect } = require('../middleware/auth');
 
 // Public — no auth required
-router.post('/webhooks/shiprocket',  ctrl.shiprocketWebhook);
-router.post('/webhooks/delhivery',   ctrl.delhiveryWebhook);
+router.all('/webhooks/shiprocket',   ctrl.shiprocketWebhook);
+router.all('/webhooks/delhivery',    ctrl.delhiveryWebhook);
 router.get('/track/awb/:awb',        ctrl.trackByAwb);   // public tracking by AWB number
 
 // Everything else requires admin auth
