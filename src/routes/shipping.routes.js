@@ -11,6 +11,7 @@ router.get('/track/awb/:awb',        ctrl.trackByAwb);   // public tracking by A
 router.use(protect);
 
 router.get('/stats',              ctrl.getStats);
+router.get('/pickup-locations',   ctrl.getPickupLocations);
 router.post('/calculate-rate',    ctrl.calculateRate);
 router.post('/live-rates',        ctrl.getLiveRates);
 

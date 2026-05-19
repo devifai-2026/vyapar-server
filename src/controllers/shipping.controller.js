@@ -171,6 +171,17 @@ exports.calculateRate = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ─── Shiprocket pickup locations ─────────────────────────────────────────────
+
+exports.getPickupLocations = async (req, res, next) => {
+  try {
+    const data = await shiprocket.getPickupLocations();
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── Live rates from courier APIs ─────────────────────────────────────────────
 
 /**
@@ -216,7 +227,7 @@ exports.getLiveRates = async (req, res, next) => {
  */
 exports.bookShipment = async (req, res, next) => {
   try {
-    const { orderId, courierSlug, courierId, pickupLocation = 'Primary', sellerInfo = {} } = req.body;
+    const { orderId, courierSlug, courierId, pickupLocation = 'Home PRIMARY', sellerInfo = {} } = req.body;
     if (!orderId || !courierSlug) {
       return res.status(400).json({ success: false, message: 'orderId and courierSlug are required' });
     }
@@ -231,9 +242,16 @@ exports.bookShipment = async (req, res, next) => {
 
     if (courierSlug === 'shiprocket') {
       const created  = await shiprocket.createOrder(order, pickupLocation);
-      shipmentId     = String(created.shipment_id);
+      console.log('[SHIPROCKET] createOrder response:', JSON.stringify(created));
+
+      if (!created.shipment_id) {
+        throw new Error(created.message || `Order creation failed: ${JSON.stringify(created)}`);
+      }
+      shipmentId = String(created.shipment_id);
 
       const awbResp  = await shiprocket.assignAWB({ shipment_id: shipmentId, courier_id: courierId || undefined });
+      console.log('[SHIPROCKET] assignAWB response:', JSON.stringify(awbResp));
+
       awbCode = awbResp?.response?.data?.awb_code
              || awbResp?.awb_code
              || awbResp?.response?.data?.awb
@@ -274,8 +292,10 @@ exports.bookShipment = async (req, res, next) => {
 
     res.json({ success: true, data: { awbCode, shipmentId, courierName } });
   } catch (err) {
-    const msg = err.response?.data?.message || err.response?.data?.error || err.message;
-    res.status(500).json({ success: false, message: msg });
+    const data = err.response?.data;
+    console.error('[BOOK SHIPMENT ERROR]', JSON.stringify(data || err.message, null, 2));
+    const msg = data?.message || data?.error || err.message;
+    res.status(500).json({ success: false, message: msg, details: data || null });
   }
 };
 

@@ -85,7 +85,8 @@ exports.createOrder = async (order, pickupLocation = 'Primary') => {
     const firstName = nameParts[0] || '';
     const lastName  = nameParts.slice(1).join(' ') || '.';
 
-    const customerPhone = addr.phone || order.customer?.phone || '';
+    const rawPhone      = addr.phone || order.customer?.phone || '';
+    const customerPhone = rawPhone.replace(/^\+91/, '').replace(/\D/g, '').slice(-10);
     const customerEmail = order.customer?.email || '';
 
     const payload = {
@@ -95,12 +96,12 @@ exports.createOrder = async (order, pickupLocation = 'Primary') => {
 
       billing_customer_name: firstName,
       billing_last_name:     lastName,
-      billing_address:       addr.line1   || '',
+      billing_address:       addr.line1 || addr.line2 || addr.city || 'N/A',
       billing_address_2:     addr.line2   || '',
       billing_city:          addr.city    || '',
       billing_pincode:       addr.pincode || '',
       billing_state:         addr.state   || '',
-      billing_country:       addr.country || 'India',
+      billing_country:       'India',
       billing_email:         customerEmail,
       billing_phone:         customerPhone,
       shipping_is_billing:   true,
@@ -159,6 +160,17 @@ exports.generatePickup = async (shipment_id) => {
       { shipment_id: [shipment_id] },
       { headers: authHeaders(token) },
     );
+    return data;
+  });
+};
+
+// ─── Pickup Locations ─────────────────────────────────────────────────────────
+
+exports.getPickupLocations = async () => {
+  return withAuth(async (token) => {
+    const { data } = await axios.get(`${BASE}/settings/company/pickup`, {
+      headers: authHeaders(token),
+    });
     return data;
   });
 };
