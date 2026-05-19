@@ -5,13 +5,13 @@ const { protect } = require('../middleware/auth');
 // Public — no auth required
 router.all('/webhooks/shiprocket',   ctrl.shiprocketWebhook);
 router.all('/webhooks/delhivery',    ctrl.delhiveryWebhook);
-router.get('/track/awb/:awb',        ctrl.trackByAwb);   // public tracking by AWB number
+router.get('/track/awb/:awb',        ctrl.trackByAwb);
+router.get('/pickup-locations',      ctrl.getPickupLocations);
 
 // Everything else requires admin auth
 router.use(protect);
 
 router.get('/stats',              ctrl.getStats);
-router.get('/pickup-locations',   ctrl.getPickupLocations);
 router.post('/calculate-rate',    ctrl.calculateRate);
 router.post('/live-rates',        ctrl.getLiveRates);
 
