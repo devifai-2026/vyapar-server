@@ -1,0 +1,230 @@
+const Order             = require('../models/Order');
+const Product           = require('../models/Product');
+const Customer          = require('../models/Customer');
+const AdminNotification = require('../models/AdminNotification');
+const StoreSettings     = require('../models/StoreSettings');
+const Courier           = require('../models/Courier');
+const shiprocket        = require('../services/shiprocket.service');
+const emailService      = require('../services/email.service');
+
+async function autoBookShiprocket(order) {
+  const courier = await Courier.findOne({ slug: 'shiprocket', isActive: true });
+  if (!courier) return;
+
+  const created    = await shiprocket.createOrder(order);
+  const shipmentId = String(created.shipment_id);
+  const awbResp    = await shiprocket.assignAWB({ shipment_id: shipmentId });
+  const awbCode    = awbResp?.response?.data?.awb_code || awbResp?.awb_code;
+  await shiprocket.generatePickup(shipmentId);
+
+  await Order.findByIdAndUpdate(order._id, {
+    awbCode,
+    shipmentId,
+    courierSlug:    'shiprocket',
+    courierName:    'Shiprocket',
+    trackingNumber: awbCode,
+    status:         'processing',
+    $push: { timeline: { status: 'processing', note: `Shipment auto-booked via Shiprocket. AWB: ${awbCode}` } },
+  });
+
+  if (awbCode) {
+    const customer = await Customer.findById(order.customer).select('email name').lean();
+    if (customer?.email) {
+      await emailService.sendTrackingEmail({
+        toEmail: customer.email,
+        toName:  customer.name || 'Customer',
+        order:   {
+          orderNumber:    order.orderNumber,
+          awbCode,
+          trackingNumber: awbCode,
+          courierName:    'Shiprocket',
+        },
+      });
+    }
+  }
+}
+
+const generateOrderNumber = () => `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+exports.createOrder = async (req, res, next) => {
+  try {
+    const customerId = req.customer._id;
+    const { items, shippingAddress, paymentMethod, couponCode, discount, shippingCost: clientShipping } = req.body;
+
+    if (!items?.length) {
+      return res.status(400).json({ success: false, message: 'Order must have at least one item' });
+    }
+
+    const productIds = items.map(i => i.product);
+    const products   = await Product.find({ _id: { $in: productIds } });
+    const productMap = Object.fromEntries(products.map(p => [p._id.toString(), p]));
+
+    let subtotal = 0;
+    const orderItems = items.map(item => {
+      const p = productMap[item.product];
+      if (!p) throw Object.assign(new Error(`Product ${item.product} not found`), { statusCode: 404 });
+      if (p.stock < item.quantity) throw Object.assign(new Error(`Insufficient stock for ${p.name}`), { statusCode: 400 });
+      const price = p.discountPrice || p.price;
+      subtotal += price * item.quantity;
+      return {
+        product:    p._id,
+        name:       p.name,
+        sku:        p.sku,
+        image:      p.images?.[0] || null,
+        quantity:   item.quantity,
+        price,
+        attributes: item.attributes || {},
+      };
+    });
+
+    const settings    = await StoreSettings.findOne({ storeId: 'default' }).lean();
+    const taxRate     = settings?.orders?.taxIncluded ? 0 : (settings?.orders?.gstRate || 0);
+    const tax         = Math.round(subtotal * (taxRate / 100));
+    const couponDiscount = discount || 0;
+
+    // Use client-provided shipping cost (already validated by /calculate-rate) or fall back to 0
+    const shippingCost = typeof clientShipping === 'number' && clientShipping >= 0
+      ? clientShipping
+      : 0;
+
+    const total = Math.max(0, subtotal + tax + shippingCost - couponDiscount);
+
+    const order = await Order.create({
+      orderNumber:    generateOrderNumber(),
+      customer:       customerId,
+      items:          orderItems,
+      subtotal,
+      tax,
+      shippingCost,
+      discount:       couponDiscount,
+      total,
+      platform:       'Web',
+      shippingAddress,
+      paymentMethod:  paymentMethod || 'cod',
+      couponCode:     couponCode || null,
+      timeline:       [{ status: 'pending', note: 'Order placed' }],
+    });
+
+    await Customer.findByIdAndUpdate(customerId, {
+      $inc: { orderCount: 1, totalSpent: order.total },
+      $set: { lastOrderAt: new Date(), type: 'returning' },
+    });
+
+    if (settings?.operational?.autoReduceStock !== false) {
+      await Promise.all(orderItems.map(item =>
+        Product.findByIdAndUpdate(item.product, { $inc: { stock: -item.quantity, soldCount: item.quantity } })
+      ));
+    }
+
+    await AdminNotification.create({
+      type:    'order',
+      title:   'New Order Received',
+      message: `Order ${order.orderNumber} placed — ₹${order.total}`,
+      link:    `/orders/${order._id}`,
+    });
+
+    // Auto-book shipment via Shiprocket if active — runs after response is sent
+    autoBookShiprocket(order).catch(err =>
+      console.error(`[AutoBook] Shiprocket failed for ${order.orderNumber}:`, err.message)
+    );
+
+    // Send order confirmation email — non-blocking
+    if (req.customer?.email) {
+      emailService.sendOrderConfirmationEmail({
+        toEmail: req.customer.email,
+        toName:  req.customer.name || 'Customer',
+        order,
+      }).catch(err =>
+        console.error(`[Email] Confirmation failed for ${order.orderNumber}:`, err.message)
+      );
+    }
+
+    res.status(201).json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
+
+exports.getMyOrders = async (req, res, next) => {
+  try {
+    const customerId = req.customer._id;
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(50,  parseInt(req.query.limit) || 10);
+    const skip  = (page - 1) * limit;
+
+    const filter = { customer: customerId };
+    if (req.query.status && req.query.status !== 'all') filter.status = req.query.status;
+
+    const [orders, total] = await Promise.all([
+      Order.find(filter)
+        .populate('items.product', 'name images')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Order.countDocuments(filter),
+    ]);
+
+    res.json({ success: true, data: orders, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
+  } catch (err) { next(err); }
+};
+
+exports.getMyOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, customer: req.customer._id })
+      .populate('items.product', 'name images sku');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
+
+exports.getInvoice = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, customer: req.customer._id })
+      .populate('items.product', 'name images sku')
+      .populate('customer', 'name email phone');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    res.json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
+
+exports.trackOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, customer: req.customer._id })
+      .select('orderNumber status awbCode courierName courierSlug trackingNumber timeline shippingAddress createdAt');
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+
+    const response = {
+      orderNumber:    order.orderNumber,
+      status:         order.status,
+      awbCode:        order.awbCode,
+      courierName:    order.courierName,
+      trackingNumber: order.trackingNumber,
+      timeline:       order.timeline,
+      placedAt:       order.createdAt,
+      liveTracking:   null,
+    };
+
+    if (order.awbCode && order.courierSlug === 'shiprocket') {
+      try {
+        response.liveTracking = await shiprocket.trackShipment(order.awbCode);
+      } catch (_) {
+        // live tracking is best-effort; don't fail the response
+      }
+    }
+
+    res.json({ success: true, data: response });
+  } catch (err) { next(err); }
+};
+
+exports.cancelOrder = async (req, res, next) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, customer: req.customer._id });
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    if (!['pending', 'processing'].includes(order.status)) {
+      return res.status(400).json({ success: false, message: 'Order cannot be cancelled at this stage' });
+    }
+    order.status = 'cancelled';
+    order.timeline.push({ status: 'cancelled', note: 'Cancelled by customer', createdAt: new Date() });
+    await order.save();
+    res.json({ success: true, data: order });
+  } catch (err) { next(err); }
+};
