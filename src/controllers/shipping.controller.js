@@ -227,7 +227,7 @@ exports.getLiveRates = async (req, res, next) => {
  */
 exports.bookShipment = async (req, res, next) => {
   try {
-    const { orderId, courierSlug, courierId, pickupLocation = 'Home PRIMARY', sellerInfo = {} } = req.body;
+    const { orderId, courierSlug, courierId, pickupLocation = 'Home', sellerInfo = {} } = req.body;
     if (!orderId || !courierSlug) {
       return res.status(400).json({ success: false, message: 'orderId and courierSlug are required' });
     }
