@@ -97,7 +97,6 @@ customerSchema.methods.toJSON = function () {
   return obj;
 };
 
-customerSchema.index({ email: 1 });
 customerSchema.index({ phone: 1 });
 customerSchema.index({ status: 1, type: 1 });
 customerSchema.index({ name: 'text', email: 'text', phone: 'text' });

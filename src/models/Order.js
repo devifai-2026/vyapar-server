@@ -60,6 +60,4 @@ const orderSchema = new mongoose.Schema({
 orderSchema.index({ customer: 1 });
 orderSchema.index({ status: 1, platform: 1 });
 orderSchema.index({ createdAt: -1 });
-orderSchema.index({ orderNumber: 1 });
-
 module.exports = mongoose.model('Order', orderSchema);
