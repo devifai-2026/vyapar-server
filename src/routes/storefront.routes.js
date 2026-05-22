@@ -15,6 +15,11 @@ router.get('/brands',                ctrl.listBrands);
 // Flash Sale
 router.get('/flash-sales/active',    ctrl.getActiveFlashSale);
 
+// Offers
+router.get('/offers',                require('../controllers/offer.controller').getActiveOffers);
+router.get('/offers/:id',            require('../controllers/offer.controller').getActiveOffer);
+router.post('/offers/calculate',     require('../controllers/offer.controller').calculateOfferDiscount);
+
 // Appearance
 router.get('/appearance',            ctrl.getAppearance);
 

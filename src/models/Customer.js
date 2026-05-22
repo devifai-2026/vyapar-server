@@ -65,6 +65,7 @@ const customerSchema = new mongoose.Schema({
   lastOrderAt: { type: Date, default: null },
   fcmToken: { type: String, default: null },
   deviceType: { type: String, enum: ['android', 'ios', 'web', null], default: null },
+  webPushSubscription: { type: mongoose.Schema.Types.Mixed, default: null },
   socialLogin: { type: String, enum: ['google', 'facebook', 'apple', null], default: null },
   notes: { type: String, default: '' },
   wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],

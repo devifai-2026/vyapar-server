@@ -218,7 +218,7 @@ exports.getAppearance = async (req, res, next) => {
         { $setOnInsert: { storeId: 'default' } },
         { upsert: true, new: true }
       ),
-      StoreSettings.findOne({ storeId: 'default' }).select('regional orders general').lean(),
+      StoreSettings.findOne({ storeId: 'default' }).select('regional orders general social').lean(),
     ]);
     const data = appearance.toObject();
     data.regional = storeSettings?.regional ?? {};
@@ -230,6 +230,14 @@ exports.getAppearance = async (req, res, next) => {
     data.supportEmail = storeSettings?.general?.supportEmail || '';
     data.phone        = storeSettings?.general?.phone        || '';
     data.address      = storeSettings?.general?.address      || '';
+    data.social = {
+      facebook:  storeSettings?.social?.facebook  || '',
+      instagram: storeSettings?.social?.instagram || '',
+      twitter:   storeSettings?.social?.twitter   || '',
+      youtube:   storeSettings?.social?.youtube   || '',
+      whatsapp:  storeSettings?.social?.whatsapp  || '',
+      tiktok:    storeSettings?.social?.tiktok    || '',
+    };
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };

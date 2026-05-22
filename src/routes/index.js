@@ -10,6 +10,7 @@ router.post('/storefront/shipping/calculate-rate',
 router.use('/customer/orders',     require('./customerOrder.routes'));
 router.use('/customer/payments',   require('./customerPayment.routes'));
 router.use('/customer/wishlist',   require('./customerWishlist.routes'));
+router.use('/customer/push',       require('./customerPush.routes'));
 router.use('/customer',            require('./customerAuth.routes'));
 
 // Admin routes
@@ -24,6 +25,7 @@ router.use('/orders',             require('./order.routes'));
 router.use('/customers',          require('./customer.routes'));
 router.use('/coupons',            require('./coupon.routes'));
 router.use('/flash-sales',        require('./flashSale.routes'));
+router.use('/offers',             require('./offer.routes'));
 router.use('/push-notifications', require('./pushNotification.routes'));
 router.use('/appearance',         require('./appearance.routes'));
 router.use('/settings',           require('./settings.routes'));

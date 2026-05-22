@@ -10,11 +10,7 @@ const pushNotificationSchema = new mongoose.Schema({
     default: 'homepage',
   },
   deepLinkTarget: { type: String, default: null },
-  audience:   {
-    type: String,
-    enum: ['all', 'android', 'ios'],
-    default: 'all',
-  },
+  audience:   { type: String, default: 'all' },
   sentCount:  { type: Number, default: 0 },
   openedCount: { type: Number, default: 0 },
   status:     { type: String, enum: ['draft', 'sent', 'scheduled', 'failed'], default: 'draft' },
