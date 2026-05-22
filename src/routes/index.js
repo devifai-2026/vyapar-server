@@ -32,5 +32,6 @@ router.use('/shipping',           require('./shipping.routes'));
 router.use('/reviews',            require('./review.routes'));
 router.use('/reports',            require('./report.routes'));
 router.use('/notifications',      require('./notification.routes'));
+router.use('/blogs',              require('./blog.routes'));
 
 module.exports = router;

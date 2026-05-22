@@ -164,6 +164,17 @@ exports.generatePickup = async (shipment_id) => {
   });
 };
 
+// ─── Wallet Balance ───────────────────────────────────────────────────────────
+
+exports.getWalletBalance = async () => {
+  return withAuth(async (token) => {
+    const { data } = await axios.get(`${BASE}/account/details/wallet-balance`, {
+      headers: authHeaders(token),
+    });
+    return data;
+  });
+};
+
 // ─── Pickup Locations ─────────────────────────────────────────────────────────
 
 exports.getPickupLocations = async () => {

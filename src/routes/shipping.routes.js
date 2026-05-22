@@ -12,6 +12,7 @@ router.get('/pickup-locations',      ctrl.getPickupLocations);
 router.use(protect);
 
 router.get('/stats',              ctrl.getStats);
+router.get('/wallet-balance',     ctrl.getWalletBalance);
 router.post('/calculate-rate',    ctrl.calculateRate);
 router.post('/live-rates',        ctrl.getLiveRates);
 

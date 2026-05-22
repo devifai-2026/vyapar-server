@@ -47,6 +47,8 @@ app.use('/uploads', express.static(path.join(__dirname, '..', process.env.UPLOAD
 app.use('/api', routes);
 
 // Health check
+app.get('/', (_req, res) => res.json({ status: 'ok', message: "Welcome To Vyaparcart" }));
+
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // 404 + error handler

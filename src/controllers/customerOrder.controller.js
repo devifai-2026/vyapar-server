@@ -11,12 +11,28 @@ async function autoBookShiprocket(order) {
   const courier = await Courier.findOne({ slug: 'shiprocket', isActive: true });
   if (!courier) return;
 
-  const created    = await shiprocket.createOrder(order);
+  // Populate customer so Shiprocket gets email + phone
+  const customer = await Customer.findById(order.customer).select('name email phone').lean();
+  const orderWithCustomer = Object.assign(order.toObject ? order.toObject() : { ...order }, { customer });
+
+  let created = await shiprocket.createOrder(orderWithCustomer);
+
+  // Shiprocket returns 200 with error when pickup location name is wrong —
+  // extract the correct location from the response and retry once
+  if (!created.shipment_id && created.data?.data?.[0]?.pickup_location) {
+    const correctLocation = created.data.data[0].pickup_location;
+    created = await shiprocket.createOrder(orderWithCustomer, correctLocation);
+  }
+
+  if (!created.shipment_id) {
+    throw new Error(`Shiprocket createOrder failed: ${created.message || JSON.stringify(created)}`);
+  }
+
   const shipmentId = String(created.shipment_id);
   const awbResp    = await shiprocket.assignAWB({ shipment_id: shipmentId });
   const awbCode    = awbResp?.response?.data?.awb_code || awbResp?.awb_code;
-  await shiprocket.generatePickup(shipmentId);
 
+  // Shiprocket auto-schedules pickup on AWB assignment — no need to call generatePickup
   await Order.findByIdAndUpdate(order._id, {
     awbCode,
     shipmentId,
@@ -125,7 +141,7 @@ exports.createOrder = async (req, res, next) => {
 
     // Auto-book shipment via Shiprocket if active — runs after response is sent
     autoBookShiprocket(order).catch(err =>
-      console.error(`[AutoBook] Shiprocket failed for ${order.orderNumber}:`, err.message)
+      console.error(`[AutoBook] Shiprocket failed for ${order.orderNumber}:`, err.message, err.response?.data || '')
     );
 
     // Send order confirmation email — non-blocking
@@ -222,9 +238,26 @@ exports.cancelOrder = async (req, res, next) => {
     if (!['pending', 'processing'].includes(order.status)) {
       return res.status(400).json({ success: false, message: 'Order cannot be cancelled at this stage' });
     }
+
     order.status = 'cancelled';
     order.timeline.push({ status: 'cancelled', note: 'Cancelled by customer', createdAt: new Date() });
     await order.save();
+
+    // Restore stock
+    const settings = await StoreSettings.findOne({ storeId: 'default' }).lean();
+    if (settings?.operational?.autoReduceStock !== false) {
+      await Promise.all(order.items.map(item =>
+        Product.findByIdAndUpdate(item.product, { $inc: { stock: item.quantity, soldCount: -item.quantity } })
+      ));
+    }
+
+    // Cancel Shiprocket shipment if AWB was assigned
+    if (order.awbCode && order.courierSlug === 'shiprocket') {
+      shiprocket.cancelShipment(order.awbCode).catch(err =>
+        console.error(`[Cancel] Shiprocket cancellation failed for ${order.orderNumber}:`, err.message, err.response?.data || '')
+      );
+    }
+
     res.json({ success: true, data: order });
   } catch (err) { next(err); }
 };

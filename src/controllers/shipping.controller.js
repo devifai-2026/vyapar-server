@@ -171,6 +171,18 @@ exports.calculateRate = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ─── Shiprocket wallet balance ────────────────────────────────────────────────
+
+exports.getWalletBalance = async (req, res, next) => {
+  try {
+    const data    = await shiprocket.getWalletBalance();
+    const balance = data?.data?.wallet_balance ?? data?.wallet_balance ?? null;
+    res.json({ success: true, data: { balance } });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ─── Shiprocket pickup locations ─────────────────────────────────────────────
 
 exports.getPickupLocations = async (req, res, next) => {
@@ -258,7 +270,8 @@ exports.bookShipment = async (req, res, next) => {
              || null;
 
       if (!awbCode) {
-        throw new Error(awbResp?.response?.data?.message || 'AWB assignment failed — check Shiprocket dashboard for courier availability');
+        const awbErr = awbResp?.response?.data?.message || awbResp?.message || JSON.stringify(awbResp);
+        throw new Error(`AWB assignment failed: ${awbErr}`);
       }
 
       const partnerName = awbResp?.response?.data?.courier_name || '';

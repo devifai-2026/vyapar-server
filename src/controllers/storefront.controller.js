@@ -218,10 +218,18 @@ exports.getAppearance = async (req, res, next) => {
         { $setOnInsert: { storeId: 'default' } },
         { upsert: true, new: true }
       ),
-      StoreSettings.findOne({ storeId: 'default' }).select('regional').lean(),
+      StoreSettings.findOne({ storeId: 'default' }).select('regional orders general').lean(),
     ]);
     const data = appearance.toObject();
     data.regional = storeSettings?.regional ?? {};
+    data.tax = {
+      gstRate:     storeSettings?.orders?.gstRate     ?? 0,
+      taxIncluded: storeSettings?.orders?.taxIncluded ?? false,
+    };
+    data.storeName    = storeSettings?.general?.storeName    || 'My Store';
+    data.supportEmail = storeSettings?.general?.supportEmail || '';
+    data.phone        = storeSettings?.general?.phone        || '';
+    data.address      = storeSettings?.general?.address      || '';
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };
