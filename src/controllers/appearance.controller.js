@@ -31,6 +31,17 @@ exports.updateFooter          = updateSection('footer');
 exports.updateCustomCSS       = updateSection('customCSS');
 exports.updateHomepageContent = updateSection('homepageContent');
 
+exports.updateCardStyle = async (req, res, next) => {
+  try {
+    const appearance = await Appearance.findOneAndUpdate(
+      { storeId: 'default' },
+      { $set: { productCardStyle: req.body.style } },
+      { new: true, upsert: true }
+    );
+    res.json({ success: true, data: appearance });
+  } catch (err) { next(err); }
+};
+
 exports.uploadLogo = async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });

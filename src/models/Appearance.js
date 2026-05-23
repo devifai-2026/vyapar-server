@@ -66,6 +66,8 @@ const appearanceSchema = new mongoose.Schema({
     },
   },
 
+  productCardStyle: { type: String, default: 'minimal' },
+
   logo:    { type: String, default: null },
   favicon: { type: String, default: null },
   appIcon: { type: String, default: null },

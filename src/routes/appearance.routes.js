@@ -14,6 +14,7 @@ router.put('/header',        ctrl.updateHeader);
 router.put('/footer',        ctrl.updateFooter);
 router.put('/css',              ctrl.updateCustomCSS);
 router.put('/homepage-content', ctrl.updateHomepageContent);
+router.put('/card-style',       ctrl.updateCardStyle);
 router.post('/logo',         uploadLogo,    ctrl.uploadLogo);
 router.post('/favicon',      uploadFavicon, ctrl.uploadFavicon);
 router.post('/appicon',      uploadAppIcon, ctrl.uploadAppIcon);

@@ -238,6 +238,7 @@ exports.getAppearance = async (req, res, next) => {
       whatsapp:  storeSettings?.social?.whatsapp  || '',
       tiktok:    storeSettings?.social?.tiktok    || '',
     };
+    res.set('Cache-Control', 'no-store');
     res.json({ success: true, data });
   } catch (err) { next(err); }
 };
