@@ -80,3 +80,19 @@ exports.uploadAppIcon = async (req, res, next) => {
     res.json({ success: true, data: { appIcon: url }, appearance });
   } catch (err) { next(err); }
 };
+
+exports.uploadBannerImage = async (req, res, next) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    const index = parseInt(req.params.index, 10);
+    if (isNaN(index) || index < 0 || index > 4)
+      return res.status(400).json({ success: false, message: 'Invalid banner index (0–4)' });
+    const url = `/uploads/banners/${req.file.filename}`;
+    const appearance = await Appearance.findOneAndUpdate(
+      { storeId: 'default' },
+      { $set: { [`homepageContent.promoBanners.${index}.image`]: url } },
+      { new: true, upsert: true }
+    );
+    res.json({ success: true, data: { image: url }, appearance });
+  } catch (err) { next(err); }
+};

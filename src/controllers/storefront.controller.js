@@ -221,6 +221,19 @@ exports.getAppearance = async (req, res, next) => {
       StoreSettings.findOne({ storeId: 'default' }).select('regional orders general social').lean(),
     ]);
     const data = appearance.toObject();
+
+    // Migrate old promoBanner1/2 format → promoBanners array
+    if (!data.homepageContent) data.homepageContent = {};
+    const hc = data.homepageContent;
+    if (!hc.promoBanners || hc.promoBanners.length === 0) {
+      const b1 = hc.promoBanner1 || {};
+      const b2 = hc.promoBanner2 || {};
+      hc.promoBanners = [
+        { subtitle: b1.subtitle || '', title: b1.title || '', cta: b1.cta || 'Shop Now', link: b1.link || '/products', image: b1.image || null },
+        { subtitle: b2.subtitle || '', title: b2.title || '', cta: b2.cta || 'Explore',  link: b2.link || '/products', image: b2.image || null },
+      ];
+    }
+
     data.regional = storeSettings?.regional ?? {};
     data.tax = {
       gstRate:     storeSettings?.orders?.gstRate     ?? 0,

@@ -93,7 +93,12 @@ const storeSettingsSchema = new mongoose.Schema({
     secure:   { type: Boolean, default: false },
     user:     { type: String, default: '', select: false },
     password: { type: String, default: '', select: false },
-    from:     { type: String, default: '' }, // e.g. "MyShop <no-reply@myshop.com>"
+    from:     { type: String, default: '' },
+  },
+
+  sms: {
+    customerId: { type: String, default: '', select: false },
+    authToken:  { type: String, default: '', select: false },
   },
 }, { timestamps: true });
 

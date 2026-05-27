@@ -11,6 +11,7 @@ router.use('/customer/orders',     require('./customerOrder.routes'));
 router.use('/customer/payments',   require('./customerPayment.routes'));
 router.use('/customer/wishlist',   require('./customerWishlist.routes'));
 router.use('/customer/push',       require('./customerPush.routes'));
+router.use('/customer/otp',        require('./otp.routes'));
 router.use('/customer',            require('./customerAuth.routes'));
 
 // Admin routes

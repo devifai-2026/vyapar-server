@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const ctrl   = require('../controllers/appearance.controller');
 const { protect } = require('../middleware/auth');
-const { uploadLogo, uploadFavicon, uploadAppIcon } = require('../middleware/upload');
+const { uploadLogo, uploadFavicon, uploadAppIcon, uploadBanner } = require('../middleware/upload');
 
 router.use(protect);
 
@@ -18,5 +18,6 @@ router.put('/card-style',       ctrl.updateCardStyle);
 router.post('/logo',         uploadLogo,    ctrl.uploadLogo);
 router.post('/favicon',      uploadFavicon, ctrl.uploadFavicon);
 router.post('/appicon',      uploadAppIcon, ctrl.uploadAppIcon);
+router.post('/banner/:index', uploadBanner,  ctrl.uploadBannerImage);
 
 module.exports = router;

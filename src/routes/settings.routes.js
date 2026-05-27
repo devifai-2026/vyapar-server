@@ -13,5 +13,7 @@ router.put('/orders',        ctrl.updateOrders);
 router.put('/social',        ctrl.updateSocial);
 router.put('/shipping',      ctrl.updateShipping);
 router.put('/reviews',       ctrl.updateReviews);
+router.get('/sms',           ctrl.getSms);
+router.put('/sms',           ctrl.updateSms);
 
 module.exports = router;

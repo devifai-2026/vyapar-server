@@ -50,19 +50,19 @@ const appearanceSchema = new mongoose.Schema({
 
   homepageContent: {
     promoStrip: { type: String, default: 'Free shipping on orders over $500 · Secure checkout · Easy returns' },
-    promoBanner1: {
-      subtitle: { type: String, default: 'New Season' },
-      title:    { type: String, default: 'Gear Up for the Crag' },
-      cta:      { type: String, default: 'Shop Now' },
-      link:     { type: String, default: '/products' },
-      image:    { type: String, default: null },
-    },
-    promoBanner2: {
-      subtitle: { type: String, default: 'Performance Tech' },
-      title:    { type: String, default: 'Alpine Ready Apparel' },
-      cta:      { type: String, default: 'Explore' },
-      link:     { type: String, default: '/products' },
-      image:    { type: String, default: null },
+    promoBanners: {
+      type: [{
+        subtitle: { type: String, default: '' },
+        title:    { type: String, default: '' },
+        cta:      { type: String, default: 'Shop Now' },
+        link:     { type: String, default: '/products' },
+        image:    { type: String, default: null },
+      }],
+      default: [
+        { subtitle: 'New Season',       title: 'Gear Up for the Crag',   cta: 'Shop Now', link: '/products', image: null },
+        { subtitle: 'Performance Tech', title: 'Alpine Ready Apparel',    cta: 'Explore',  link: '/products', image: null },
+      ],
+      validate: { validator: (v) => v.length <= 5, message: 'Maximum 5 banners allowed' },
     },
   },
 

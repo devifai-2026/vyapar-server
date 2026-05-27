@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const productSchema = new mongoose.Schema({
   name:          { type: String, required: true, trim: true },
   description:   { type: String, default: '' },
+  author:        { type: String, default: '', trim: true },
   brand:         { type: String, default: '' },
   category:      { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
   sku:           { type: String, required: true, unique: true, trim: true, uppercase: true },
@@ -35,7 +36,7 @@ productSchema.virtual('discountPercent').get(function () {
   return Math.round((1 - this.discountPrice / this.price) * 100);
 });
 
-productSchema.index({ name: 'text', sku: 'text', brand: 'text' });
+productSchema.index({ name: 'text', sku: 'text', brand: 'text', author: 'text' });
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ stock: 1 });
 
