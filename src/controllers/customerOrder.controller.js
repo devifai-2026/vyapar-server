@@ -1,6 +1,7 @@
 const Order             = require('../models/Order');
 const Product           = require('../models/Product');
 const Customer          = require('../models/Customer');
+const Coupon            = require('../models/Coupon');
 const AdminNotification = require('../models/AdminNotification');
 const StoreSettings     = require('../models/StoreSettings');
 const Courier           = require('../models/Courier');
@@ -65,7 +66,7 @@ const generateOrderNumber = () => `ORD-${Date.now()}-${Math.floor(Math.random() 
 exports.createOrder = async (req, res, next) => {
   try {
     const customerId = req.customer._id;
-    const { items, shippingAddress, paymentMethod, couponCode, discount, shippingCost: clientShipping } = req.body;
+    const { items, shippingAddress, paymentMethod, couponCode, shippingCost: clientShipping, platform } = req.body;
 
     if (!items?.length) {
       return res.status(400).json({ success: false, message: 'Order must have at least one item' });
@@ -96,7 +97,28 @@ exports.createOrder = async (req, res, next) => {
     const settings    = await StoreSettings.findOne({ storeId: 'default' }).lean();
     const taxRate     = settings?.orders?.taxIncluded ? 0 : (settings?.orders?.gstRate || 0);
     const tax         = Math.round(subtotal * (taxRate / 100));
-    const couponDiscount = discount || 0;
+
+    // Recompute the coupon discount server-side from the live subtotal —
+    // never trust a discount amount sent by the client.
+    let couponDiscount = 0;
+    let appliedCoupon = null;
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+      if (!coupon) {
+        return res.status(400).json({ success: false, message: 'Invalid coupon code' });
+      }
+      const { valid, reason } = coupon.isValid(subtotal, platform || 'web');
+      if (!valid) {
+        return res.status(400).json({ success: false, message: reason });
+      }
+      if (coupon.discountType === 'percent') {
+        couponDiscount = Math.round(subtotal * (coupon.discountValue / 100));
+        if (coupon.maxDiscount) couponDiscount = Math.min(couponDiscount, coupon.maxDiscount);
+      } else {
+        couponDiscount = coupon.discountValue;
+      }
+      appliedCoupon = coupon;
+    }
 
     // Use client-provided shipping cost (already validated by /calculate-rate) or fall back to 0
     const shippingCost = typeof clientShipping === 'number' && clientShipping >= 0
@@ -125,6 +147,10 @@ exports.createOrder = async (req, res, next) => {
       $inc: { orderCount: 1, totalSpent: order.total },
       $set: { lastOrderAt: new Date(), type: 'returning' },
     });
+
+    if (appliedCoupon) {
+      await Coupon.findByIdAndUpdate(appliedCoupon._id, { $inc: { usageCount: 1 } });
+    }
 
     if (settings?.operational?.autoReduceStock !== false) {
       await Promise.all(orderItems.map(item =>

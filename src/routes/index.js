@@ -9,6 +9,7 @@ router.post('/storefront/shipping/calculate-rate',
 
 router.use('/customer/orders',     require('./customerOrder.routes'));
 router.use('/customer/payments',   require('./customerPayment.routes'));
+router.use('/customer/cart',       require('./customerCart.routes'));
 router.use('/customer/wishlist',   require('./customerWishlist.routes'));
 router.use('/customer/push',       require('./customerPush.routes'));
 router.use('/customer/otp',        require('./otp.routes'));

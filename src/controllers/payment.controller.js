@@ -383,7 +383,11 @@ exports.verifyPayment = async (req, res, next) => {
         .createHmac('sha256', keySecret)
         .update(`${razorpayOrderId}|${razorpayPaymentId}`)
         .digest('hex');
-      if (expected !== razorpaySignature) {
+      const expectedBuf = Buffer.from(expected, 'hex');
+      const actualBuf   = Buffer.from(String(razorpaySignature || ''), 'hex');
+      const signatureValid = expectedBuf.length === actualBuf.length &&
+        crypto.timingSafeEqual(expectedBuf, actualBuf);
+      if (!signatureValid) {
         return res.status(400).json({ success: false, message: 'Payment signature mismatch' });
       }
       order.transactionId  = razorpayPaymentId;
